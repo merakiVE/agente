@@ -2,26 +2,37 @@ package pool
 
 import (
 	"github.com/garyburd/redigo/redis"
+	"github.com/gocraft/work"
 )
 
 type AgentManager struct {
-	PubSubConn *redis.PubSubConn
+	pubSubConn *redis.PubSubConn
+	enqueuer   *work.Enqueuer
+}
+
+func (this *AgentManager) GetEnqueuer() *work.Enqueuer {
+	return this.enqueuer
+}
+
+func (this *AgentManager) EnqueueJob(name_job string, params map[string]interface{}) (*work.Job, error) {
+	return this.enqueuer.Enqueue(name_job, params)
 }
 
 func (this *AgentManager) SubscribeChannel(channel string) error {
-	return this.PubSubConn.PSubscribe(channel)
+	return this.pubSubConn.PSubscribe(channel)
 }
 
 func (this *AgentManager) Close() error {
-	return this.PubSubConn.Close()
+	return this.pubSubConn.Close()
 }
 
 func (this *AgentManager) ReceiveMessage() interface{} {
-	return this.PubSubConn.Receive()
+	return this.pubSubConn.Receive()
 }
 
-func NewAgentManager(c redis.Conn) *AgentManager {
+func NewAgentManager(cnn_pub_sub *redis.Conn, cnn_pool *redis.Pool, namespace string) *AgentManager {
 	return &AgentManager{
-		PubSubConn: &redis.PubSubConn{Conn: c},
+		pubSubConn: &redis.PubSubConn{Conn: cnn_pub_sub},
+		enqueuer:   work.NewEnqueuer(namespace, cnn_pool),
 	}
 }
