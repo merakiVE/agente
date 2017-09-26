@@ -1,6 +1,6 @@
 package types
 
-type MessageAgent struct {
+type AgentMessage struct {
 	AgentID     string `json:"agent_id"`
 	JobID       string `json:"job_id"`
 	ProcedureID string `json:"procedure_id"`
