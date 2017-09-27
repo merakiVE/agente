@@ -13,3 +13,7 @@ type AgentMessage struct {
 func (this *AgentMessage) Serialize() ([]byte, error) {
 	return json.Marshal(this)
 }
+
+func (this *AgentMessage) LoadData(data_encode []byte) (error) {
+	return json.Unmarshal(data_encode, this)
+}
