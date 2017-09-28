@@ -3,14 +3,18 @@ package pool
 import (
 	"github.com/garyburd/redigo/redis"
 	"github.com/gocraft/work"
+
+	"github.com/merakiVE/agente/core/types"
+
 	"fmt"
 )
 
 type AgentManager struct {
-	pubSubConn *redis.PubSubConn
-	enqueuer   *work.Enqueuer
-
-	started bool
+	pubSubConn  *redis.PubSubConn
+	enqueuer    *work.Enqueuer
+	started     bool
+	stopChan    chan bool
+	messageChan chan types.AgentMessage
 }
 
 func (this *AgentManager) GetEnqueuer() *work.Enqueuer {
@@ -25,12 +29,9 @@ func (this *AgentManager) SubscribeChannel(channel string) error {
 	return this.pubSubConn.PSubscribe(channel)
 }
 
-func (this *AgentManager) closeConnPubSub() error {
-	return this.closeConnPubSub()
-}
-
-func (this *AgentManager) Stop() error {
-	return this.pubSubConn.Close()
+func (this *AgentManager) Stop() {
+	this.stopChan <- true
+	this.pubSubConn.Close()
 }
 
 func (this *AgentManager) ReceiveMessage() interface{} {
@@ -39,33 +40,63 @@ func (this *AgentManager) ReceiveMessage() interface{} {
 
 func (this *AgentManager) Start() {
 
-	if !this.started {
+	if this.started {
 		return
 	}
 
 	this.started = true
 
-	this.initLoop()
+	go this.listenMessages()
+	go this.administrator()
 }
 
-func (this *AgentManager) initLoop() {
+func (this *AgentManager) listenMessages() {
 	for {
-		switch v := this.ReceiveMessage().(type) {
-		case redis.Message:
-			fmt.Printf("%s: message: %s\n", v.Channel, v.Data)
-		case redis.PMessage:
-			fmt.Printf("%s: message: %s %s\n", v.Channel, v.Data, v.Pattern)
-		case redis.Subscription:
-			fmt.Printf("%s: %s %d\n", v.Channel, v.Kind, v.Count)
-		case error:
-			panic(v)
+		select {
+		case <-this.stopChan:
+			fmt.Println("Stop listen messages")
+			return
+		default:
+			switch v := this.ReceiveMessage().(type) {
+			case redis.Message:
+				fmt.Printf("%s: message: %s\n", v.Channel, v.Data)
+			case redis.PMessage:
+				fmt.Printf("%s: message: %s %s\n", v.Channel, v.Data, v.Pattern)
+
+				x := types.AgentMessage{}
+				x.LoadData(v.Data)
+
+				this.messageChan <- x
+
+			case redis.Subscription:
+				fmt.Printf("%s: %s %d\n", v.Channel, v.Kind, v.Count)
+			case error:
+				panic(v)
+			}
+		}
+
+	}
+}
+
+func (this *AgentManager) administrator() {
+	for {
+		select {
+		case data := <-this.messageChan:
+			fmt.Println("data received ", data)
+
+		case <-this.stopChan:
+			fmt.Println("Stop administrator")
+			return
 		}
 	}
 }
 
 func NewAgentManager(cnn redis.Conn, cnn_pool *redis.Pool, namespace string) *AgentManager {
 	return &AgentManager{
-		pubSubConn: &redis.PubSubConn{Conn: cnn},
-		enqueuer:   work.NewEnqueuer(namespace, cnn_pool),
+		pubSubConn:  &redis.PubSubConn{Conn: cnn},
+		enqueuer:    work.NewEnqueuer(namespace, cnn_pool),
+		messageChan: make(chan types.AgentMessage),
+		stopChan:    make(chan bool),
+		started:     false,
 	}
 }
