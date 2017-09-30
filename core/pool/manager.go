@@ -10,11 +10,11 @@ import (
 )
 
 type AgentManager struct {
-	pubSubConn  *redis.PubSubConn
-	enqueuer    *work.Enqueuer
-	started     bool
-	stopChan    chan bool
-	messageChan chan types.AgentMessage
+	pubSubConn *redis.PubSubConn
+	enqueuer   *work.Enqueuer
+	started    bool
+	stopChan   chan bool
+	dataChan   chan []byte
 }
 
 func (this *AgentManager) GetEnqueuer() *work.Enqueuer {
@@ -43,11 +43,10 @@ func (this *AgentManager) Start() {
 	if this.started {
 		return
 	}
-
 	this.started = true
 
 	go this.listenMessages()
-	go this.administrator()
+	go this.administratorAgent()
 }
 
 func (this *AgentManager) listenMessages() {
@@ -63,10 +62,7 @@ func (this *AgentManager) listenMessages() {
 			case redis.PMessage:
 				fmt.Printf("%s: message: %s %s\n", v.Channel, v.Data, v.Pattern)
 
-				x := types.AgentMessage{}
-				x.LoadData(v.Data)
-
-				this.messageChan <- x
+				this.dataChan <- v.Data
 
 			case redis.Subscription:
 				fmt.Printf("%s: %s %d\n", v.Channel, v.Kind, v.Count)
@@ -74,15 +70,18 @@ func (this *AgentManager) listenMessages() {
 				panic(v)
 			}
 		}
-
 	}
 }
 
-func (this *AgentManager) administrator() {
+func (this *AgentManager) administratorAgent() {
 	for {
 		select {
-		case data := <-this.messageChan:
-			fmt.Println("data received ", data)
+		case data := <-this.dataChan:
+
+			x := types.AgentMessage{}
+			x.LoadData(data)
+
+			fmt.Println("data received ", x)
 
 		case <-this.stopChan:
 			fmt.Println("Stop administrator")
@@ -93,10 +92,10 @@ func (this *AgentManager) administrator() {
 
 func NewAgentManager(cnn redis.Conn, cnn_pool *redis.Pool, namespace string) *AgentManager {
 	return &AgentManager{
-		pubSubConn:  &redis.PubSubConn{Conn: cnn},
-		enqueuer:    work.NewEnqueuer(namespace, cnn_pool),
-		messageChan: make(chan types.AgentMessage),
-		stopChan:    make(chan bool),
-		started:     false,
+		pubSubConn: &redis.PubSubConn{Conn: cnn},
+		enqueuer:   work.NewEnqueuer(namespace, cnn_pool),
+		dataChan:   make(chan []byte),
+		stopChan:   make(chan bool),
+		started:    false,
 	}
 }
