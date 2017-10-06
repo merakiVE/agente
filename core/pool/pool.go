@@ -1,7 +1,6 @@
 package pool
 
 import (
-	"fmt"
 	"encoding/json"
 )
 
@@ -15,14 +14,10 @@ const (
 )
 
 type ProcedureRequest struct {
-	procedure string `json:"procedure"`
-	params    map[string]interface{} `json:"params"`
+	IDProcedure string `json:"procedure"`
+	Params      map[string]interface{} `json:"params"`
 }
 
 func (this *ProcedureRequest) Serialize() ([]byte, error) {
 	return json.Marshal(this)
-}
-
-func CreateNameChannel(channel, group, action string) string {
-	return fmt.Sprintf("%s.%s.%s", channel, group, action)
 }
