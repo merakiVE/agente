@@ -2,6 +2,9 @@ package types
 
 import "encoding/json"
 
+/*
+
+ */
 type AgentMessage struct {
 	AgentID     string `json:"agent_id"`
 	JobID       string `json:"job_id"`
@@ -16,4 +19,17 @@ func (this *AgentMessage) Serialize() ([]byte, error) {
 
 func (this *AgentMessage) LoadData(data_encode []byte) (error) {
 	return json.Unmarshal(data_encode, this)
+}
+
+/*
+
+
+ */
+type ProcedureRequest struct {
+	IDProcedure string `json:"procedure"`
+	Params      map[string]interface{} `json:"params"`
+}
+
+func (this *ProcedureRequest) Serialize() ([]byte, error) {
+	return json.Marshal(this)
 }
