@@ -14,15 +14,15 @@ func NewClientAgentManager(connPool *redis.Pool) *ClientAgentManager {
 }
 
 func (this *ClientAgentManager) SendProcedureRequest(id_procedure string, params map[string]interface{}) {
-	conn := this.pool.Get()
 
 	r := ProcedureRequest{IDProcedure: id_procedure, Params: params}
 	data, err := r.Serialize()
 
 	if err != nil {
-		log.Fatal("Error, serialize Procedure Request")
+		log.Fatal("Error, Serialize Procedure Request")
 	}
 
+	conn := this.pool.Get()
 	conn.Do("PUBLISH", CHANNEL_PROCEDURE_REQUEST, data)
 	defer conn.Close()
 }
