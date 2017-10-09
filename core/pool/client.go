@@ -1,8 +1,9 @@
 package pool
 
 import (
-	"github.com/garyburd/redigo/redis"
 	"log"
+	"github.com/merakiVE/agente/core/types"
+	"github.com/garyburd/redigo/redis"
 )
 
 type ClientAgentManager struct {
@@ -15,7 +16,7 @@ func NewClientAgentManager(connPool *redis.Pool) *ClientAgentManager {
 
 func (this *ClientAgentManager) SendProcedureRequest(id_procedure string, params map[string]interface{}) {
 
-	r := ProcedureRequest{IDProcedure: id_procedure, Params: params}
+	r := types.ProcedureRequest{IDProcedure: id_procedure, Params: params}
 	data, err := r.Serialize()
 
 	if err != nil {
