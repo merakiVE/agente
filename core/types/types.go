@@ -26,10 +26,15 @@ func (this *AgentMessage) LoadData(data_encode []byte) (error) {
 
  */
 type ProcedureRequest struct {
-	IDProcedure string `json:"procedure"`
+	ProcedureID string `json:"procedure_id"`
 	Params      map[string]interface{} `json:"params"`
 }
 
 func (this *ProcedureRequest) Serialize() ([]byte, error) {
 	return json.Marshal(this)
 }
+
+func (this *ProcedureRequest) LoadData(data_encode []byte) (error) {
+	return json.Unmarshal(data_encode, this)
+}
+
