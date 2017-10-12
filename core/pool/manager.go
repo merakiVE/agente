@@ -1,12 +1,14 @@
 package pool
 
 import (
+	"fmt"
+	"log"
+
 	"github.com/garyburd/redigo/redis"
 	"github.com/gocraft/work"
-
 	"github.com/merakiVE/agente/core/types"
-
-	"fmt"
+	"github.com/merakiVE/CVDI/src/models"
+	"github.com/merakiVE/CVDI/core/db"
 )
 
 type AgentManager struct {
@@ -49,6 +51,12 @@ func (this *AgentManager) Start() {
 	go this.administratorAgent()
 }
 
+func (this *AgentManager) findProcedure(id string) {
+	var procedure models.ProcedureModel
+
+	db.Model(procedure, db.GetCurrentDatabase()).FindOne(&procedure, "v.id == '"+id+"'")
+}
+
 func (this *AgentManager) listenMessages() {
 	for {
 		select {
@@ -58,7 +66,20 @@ func (this *AgentManager) listenMessages() {
 		default:
 			switch v := this.ReceiveMessage().(type) {
 			case redis.Message:
+
+				if v.Channel == CHANNEL_PROCEDURE_REQUEST {
+					d := types.ProcedureRequest{}
+					err := d.LoadData(v.Data)
+
+					if err != nil {
+						log.Fatal("Error parsing data")
+					}
+
+					//this.EnqueueJob()
+				}
+
 				fmt.Printf("%s: message: %s\n", v.Channel, v.Data)
+
 			case redis.PMessage:
 				fmt.Printf("%s: message: %s %s\n", v.Channel, v.Data, v.Pattern)
 
