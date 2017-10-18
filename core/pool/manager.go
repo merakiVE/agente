@@ -8,7 +8,7 @@ import (
 	"github.com/gocraft/work"
 	"github.com/merakiVE/agente/core/types"
 	"github.com/merakiVE/CVDI/src/models"
-	"github.com/merakiVE/CVDI/core/db"
+	"github.com/merakiVE/koinos/db"
 )
 
 type AgentManager struct {
@@ -51,10 +51,8 @@ func (this *AgentManager) Start() {
 	go this.administratorAgent()
 }
 
-func (this *AgentManager) findProcedure(id string) {
-	var procedure models.ProcedureModel
-
-	db.Model(procedure, db.GetCurrentDatabase()).FindOne(&procedure, "v.id == '"+id+"'")
+func (this *AgentManager) findProcedure(id string, p *models.ProcedureModel) {
+	db.Model(p, db.GetCurrentDatabase()).FindOne(p, "v.id == '"+id+"'")
 }
 
 func (this *AgentManager) listenMessages() {
@@ -67,24 +65,31 @@ func (this *AgentManager) listenMessages() {
 			switch v := this.ReceiveMessage().(type) {
 			case redis.Message:
 
-				if v.Channel == CHANNEL_PROCEDURE_REQUEST {
-					d := types.ProcedureRequest{}
-					err := d.LoadData(v.Data)
+				d := types.ProcedureRequest{}
+				err := d.LoadData(v.Data)
 
-					if err != nil {
-						log.Fatal("Error parsing data")
-					}
+				if err != nil {
+					log.Fatal("Error parsing data")
+				}
 
-					//this.EnqueueJob()
+				switch v.Channel {
+
+				case CHANNEL_NEW_PROCEDURE_REQUEST:
+
+					var pm models.ProcedureModel
+
+					this.findProcedure(d.ProcedureID, &pm)
+
+					//this.EnqueueJob("job_procesor_activity", )
+
+				case CHANNEL_NEW_PROCEDURE_UPDATE:
+
 				}
 
 				fmt.Printf("%s: message: %s\n", v.Channel, v.Data)
 
 			case redis.PMessage:
 				fmt.Printf("%s: message: %s %s\n", v.Channel, v.Data, v.Pattern)
-
-				this.dataChan <- v.Data
-
 			case redis.Subscription:
 				fmt.Printf("%s: %s %d\n", v.Channel, v.Kind, v.Count)
 			case error:
