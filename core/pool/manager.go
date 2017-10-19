@@ -63,33 +63,57 @@ func (this *AgentManager) listenMessages() {
 			return
 		default:
 			switch v := this.ReceiveMessage().(type) {
-			case redis.Message:
 
-				d := types.ProcedureRequest{}
-				err := d.LoadData(v.Data)
-
-				if err != nil {
-					log.Fatal("Error parsing data")
-				}
+			case redis.PMessage:
 
 				switch v.Channel {
 
 				case CHANNEL_NEW_PROCEDURE_REQUEST:
 
+					d := types.ProcedureRequest{}
+					err := d.LoadData(v.Data)
+
+					ps := models.ProcedureSessionModel{}
+
+					//ps.ID = "1"
+					ps.UserID = d.UserID
+					ps.ProcedureID = d.ProcedureID
+					ps.CurrentStage = 1
+
+					a := db.Model(ps, db.GetCurrentDatabase()).Create(&ps)
+
+					fmt.Println(a)
+
+					if err != nil {
+						log.Fatal("Error parsing data")
+					}
+
 					var pm models.ProcedureModel
+					var nm models.NeuronModel
 
-					this.findProcedure(d.ProcedureID, &pm)
+					db.Model(pm, db.GetCurrentDatabase()).FindOne(&pm, "v.id == '"+d.ProcedureID+"'")
 
-					//this.EnqueueJob("job_procesor_activity", )
+					activity, err := pm.GetFirstActivity()
+
+					if err != nil {
+						log.Fatal(err.Error())
+					}
+
+					db.Model(nm, db.GetCurrentDatabase()).FindOne(&nm, "v.id == '"+activity.NeuronKey+"'")
+
+					fmt.Println(pm, nm)
+
+					//this.EnqueueJob("job_procesor_activity", map[string]interface{}{"session_id": ps.ID})
 
 				case CHANNEL_NEW_PROCEDURE_UPDATE:
+					break
 
 				}
 
 				fmt.Printf("%s: message: %s\n", v.Channel, v.Data)
 
-			case redis.PMessage:
-				fmt.Printf("%s: message: %s %s\n", v.Channel, v.Data, v.Pattern)
+			case redis.Message:
+				fmt.Printf("%s: message: %s %s\n", v.Channel, v.Data)
 			case redis.Subscription:
 				fmt.Printf("%s: %s %d\n", v.Channel, v.Kind, v.Count)
 			case error:
