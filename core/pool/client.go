@@ -14,9 +14,9 @@ func NewClientAgentManager(connPool *redis.Pool) *ClientAgentManager {
 	return &ClientAgentManager{pool: connPool}
 }
 
-func (this *ClientAgentManager) SendProcedureRequest(id_procedure string, params map[string]interface{}) {
+func (this *ClientAgentManager) SendProcedureRequest(user_id, procedure_id string, params map[string]interface{}) {
 
-	r := types.ProcedureRequest{IDProcedure: id_procedure, Params: params}
+	r := types.ProcedureRequest{UserID: user_id, ProcedureID: procedure_id, Params: params}
 	data, err := r.Serialize()
 
 	if err != nil {
@@ -24,6 +24,6 @@ func (this *ClientAgentManager) SendProcedureRequest(id_procedure string, params
 	}
 
 	conn := this.pool.Get()
-	conn.Do("PUBLISH", CHANNEL_PROCEDURE_REQUEST, data)
+	conn.Do("PUBLISH", CHANNEL_NEW_PROCEDURE_REQUEST, data)
 	defer conn.Close()
 }
