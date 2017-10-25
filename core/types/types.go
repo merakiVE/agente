@@ -6,10 +6,11 @@ import "encoding/json"
 
  */
 type AgentMessage struct {
-	AgentID     string `json:"agent_id"`
 	JobID       string `json:"job_id"`
+	AgentID     string `json:"agent_id"`
 	ProcedureID string `json:"procedure_id"`
 	ActivityID  string `json:"activity_id"`
+	SessionID   string `json:"session_id"`
 	Status      string `json:"status"`
 }
 
@@ -22,7 +23,6 @@ func (this *AgentMessage) LoadData(data_encode []byte) (error) {
 }
 
 /*
-
 
  */
 type ProcedureRequest struct {
