@@ -70,14 +70,14 @@ func (this *AgentManager) listenMessages() {
 
 				case CHANNEL_NEW_PROCEDURE_REQUEST:
 
-					d := types.ProcedureRequest{}
-					err := d.LoadData(v.Data)
+					pr := types.ProcedureRequest{}
+					err := pr.LoadData(v.Data)
 
 					ps := models.ProcedureSessionModel{}
 
 					//ps.ID = "1"
-					ps.UserID = d.UserID
-					ps.ProcedureID = d.ProcedureID
+					ps.UserID = pr.UserID
+					ps.ProcedureID = pr.ProcedureID
 					ps.CurrentStage = 1
 
 					a := db.Model(ps, db.GetCurrentDatabase()).Create(&ps)
@@ -91,7 +91,7 @@ func (this *AgentManager) listenMessages() {
 					var pm models.ProcedureModel
 					var nm models.NeuronModel
 
-					db.Model(pm, db.GetCurrentDatabase()).FindOne(&pm, "v.id == '"+d.ProcedureID+"'")
+					db.Model(pm, db.GetCurrentDatabase()).FindOne(&pm, "v.id == '"+pr.ProcedureID+"'")
 
 					activity, err := pm.GetFirstActivity()
 
@@ -106,6 +106,12 @@ func (this *AgentManager) listenMessages() {
 					//this.EnqueueJob("job_procesor_activity", map[string]interface{}{"session_id": ps.ID})
 
 				case CHANNEL_NEW_PROCEDURE_UPDATE:
+					am := types.AgentMessage{}
+					am.LoadData(v.Data)
+
+					if am.Status == JOB_FINISH {
+						this.findAndStartNextActivity(am)
+					}
 					break
 
 				}
@@ -121,6 +127,41 @@ func (this *AgentManager) listenMessages() {
 			}
 		}
 	}
+}
+
+func (this *AgentManager) findAndStartNextActivity(message types.AgentMessage) {
+	var pm models.ProcedureModel
+	var nm models.NeuronModel
+
+	session := message.SessionID
+
+	db.Model(pm, db.GetCurrentDatabase()).FindOne(&pm, "v.id == '"+message.ProcedureID+"'")
+
+	act, err := pm.GetNextActivity(message.ActivityID)
+
+	if err != nil {
+		//Aqui va el log
+	}
+
+	db.Model(nm, db.GetCurrentDatabase()).FindOne(&nm, "v.id == '"+act.NeuronKey+"'")
+
+	action, err := nm.GetAction(act.ActionID)
+
+	if err != nil {
+		//Aqui va el log
+	}
+
+	x_params := map[string]interface{}{}
+
+	x_params["params_job"] = map[string]interface{}{
+		"session_id": session,
+	}
+
+	x_params["data_job"] = map[string]interface{}{
+
+	}
+
+	this.EnqueueJob("job_activity_processor", x_params)
 }
 
 func (this *AgentManager) administratorAgent() {
@@ -140,10 +181,10 @@ func (this *AgentManager) administratorAgent() {
 	}
 }
 
-func NewAgentManager(cnn redis.Conn, cnn_pool *redis.Pool, namespace string) *AgentManager {
+func NewAgentManager(cnn_pub_sub redis.Conn, cnn_pool_enqueuer *redis.Pool, namespace string) *AgentManager {
 	return &AgentManager{
-		pubSubConn: &redis.PubSubConn{Conn: cnn},
-		enqueuer:   work.NewEnqueuer(namespace, cnn_pool),
+		pubSubConn: &redis.PubSubConn{Conn: cnn_pub_sub},
+		enqueuer:   work.NewEnqueuer(namespace, cnn_pool_enqueuer),
 		dataChan:   make(chan []byte),
 		stopChan:   make(chan bool),
 		started:    false,
