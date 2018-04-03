@@ -93,7 +93,7 @@ func (this *AgentManager) listenMessages() {
 
 					db.Model(pm, db.GetCurrentDatabase()).FindOne(&pm, "v.id == '"+pr.ProcedureID+"'")
 
-					activity, err := pm.GetFirstActivity()
+					activity, err := pm.GetFirstTask()
 
 					if err != nil {
 						log.Fatal(err.Error())
@@ -137,7 +137,7 @@ func (this *AgentManager) findAndStartNextActivity(message types.AgentMessage) {
 
 	db.Model(pm, db.GetCurrentDatabase()).FindOne(&pm, "v.id == '"+message.ProcedureID+"'")
 
-	act, err := pm.GetNextActivity(message.ActivityID)
+	act, err := pm.GetNextTask(message.ActivityID)
 
 	if err != nil {
 		//Aqui va el log
@@ -145,7 +145,7 @@ func (this *AgentManager) findAndStartNextActivity(message types.AgentMessage) {
 
 	db.Model(nm, db.GetCurrentDatabase()).FindOne(&nm, "v.id == '"+act.NeuronKey+"'")
 
-	action, err := nm.GetAction(act.ActionID)
+	//action, err := nm.GetAction(act.ActionID)
 
 	if err != nil {
 		//Aqui va el log
